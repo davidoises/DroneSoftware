@@ -48,7 +48,7 @@ void loop() {
       Serial.print(", ");
     }
     Serial.println("");
-    pkt_size = 0;
+    //pkt_size = 0;
   }
 
 }

@@ -164,6 +164,7 @@ void CC1125::receive(void)
 bool CC1125::get_packet(uint8_t rxbuffer[], uint8_t &pktlen)
 {
   uint8_t num_bytes = spiRead(NUM_RXBYTES, EXTD_REGISTER);
+  pktlen = 0;
   if(num_bytes != 0)
   {
     
@@ -203,6 +204,7 @@ bool CC1125::get_packet(uint8_t rxbuffer[], uint8_t &pktlen)
       if(!(status_bytes[1] & 0x80)) // This means CRC is ok
       {
         //Serial.println("Bad CRC");
+        pktlen = 0;
         return false;
       }
 
@@ -215,6 +217,7 @@ bool CC1125::get_packet(uint8_t rxbuffer[], uint8_t &pktlen)
       return true;
     }
 
+    pktlen = 0;
     return false;
   }
   
