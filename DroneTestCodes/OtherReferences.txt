@@ -1,0 +1,20 @@
+/******** Tilt compensate compass *******/
+// Main algorithm used to compensate compass. This works
+https://gist.github.com/shoebahmedadeel/0d8ca4eaa65664492cf1db2ab3a9e572
+
+// This method works too, main description of getting roll, pitch and tilt compensated yaw
+https://www.pololu.com/file/0J434/LSM303DLH-compass-app-note.pdf/
+
+// Main hack to achieve tilt compensated compass - mag_pitch = -gyr_roll and mag_roll = gyr_pitch
+https://www.instructables.com/id/Tilt-Compensated-Compass/
+
+/******** Magnetometer calibration *******/
+// 100% necessary for Magentometer calibration
+http://davidegironi.blogspot.com/2013/01/magnetometer-calibration-helper-for-avr.html#.XnE2JndFxPY
+
+// Also useful but just for refenrece
+https://learn.adafruit.com/ahrs-for-adafruits-9-dof-10-dof-breakout/magnetometer-calibration
+https://www.pjrc.com/store/prop_shield.html
+
+/******** Accelerometer double integration *****/
+https://www.nxp.com/docs/en/application-note/AN3397.pdf
