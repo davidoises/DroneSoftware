@@ -150,10 +150,51 @@ void CC1125::manualCalibration(void)
   }
 }
 
+void CC1125::set_idle(void)
+{
+  uint8_t marcstate = 0xFF;                //set unknown/dummy state value
+  commandStrobe(SIDLE);                   //sets to idle first. must be in
+  do
+  {
+    marcstate = (spiRead(MARCSTATE, EXTD_REGISTER) & 0x1F);   //read out state of cc112x to be sure in IDDLE
+  }while(marcstate != 0x01); //0x0D = RX, 0x01 = IDLE, 0x13 = TX
+}
+
+//---------------------------[Transmit mode]-------------------------------------
+void CC1125::transmit(void)
+{
+  uint8_t marcstate = 0xFF;             //set unknown/dummy state value
+  set_idle();
+  commandStrobe(STX); 
+  do
+  {
+    marcstate = (spiRead(MARCSTATE, EXTD_REGISTER) & 0x1F);   //read out state of cc112x to be sure in IDDLE
+  }while(marcstate != 0x01); //0x0D = RX, 0x01 = IDLE, 0x13 = TX
+
+  commandStrobe(SFTX); //flush the Tx_fifo conten
+  delayMicroseconds(100);
+}
+
+void CC1125::tx_payload(uint8_t *txbuffer, uint8_t len)
+{
+  for(int i = 0; i < len; i++)
+  {
+    spiWrite(STANDARD_FIFO, txbuffer[i]);
+  }
+}
+
+void CC1125::sendPacket(uint8_t *txbuffer, uint8_t len)
+{
+  tx_payload(txbuffer, len);
+  transmit();
+  receive();
+}
+
 //---------------------------[receive mode]-------------------------------------
 void CC1125::receive(void)
 {
   uint8_t marcstate = 0xFF;             //set unknown/dummy state value
+  set_idle();
   commandStrobe(SRX);
   do
   {

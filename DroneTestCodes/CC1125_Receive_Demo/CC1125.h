@@ -131,7 +131,11 @@ class CC1125
     //uninitalised pointers to SPI objects
     SPIClass * vspi = NULL;
     bool begin(void);
+    void set_idle(void);
     void receive(void);
+    void transmit(void);
+    void tx_payload(uint8_t *txbuffer, uint8_t len);
+    void sendPacket(uint8_t *txbuffer, uint8_t len);
     bool get_packet(uint8_t rxbuffer[], uint8_t &pktlen);
     void manualCalibration(void);
     void spiWrite(uint8_t reg, uint8_t data, uint8_t prefix=0);

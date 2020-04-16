@@ -2,11 +2,20 @@
 
 CC1125 rf_comm;
 
-bool msg_flag = false;
+// Transmission timer
+hw_timer_t * timer = NULL;
+uint8_t reached_timer;
+void IRAM_ATTR onTimer() {
+  reached_timer = 1;
+}
+
+// Message buffers
 uint8_t rxBuffer[128] = {0};
+uint8_t txBuffer[128] = {0};
 uint8_t pkt_size = 0;
 
-//void IRAM_ATTR msg_flag_isr()
+// reception ISR
+bool msg_flag = false;
 void msg_flag_isr()
 {
   msg_flag = true; 
@@ -28,11 +37,29 @@ void setup() {
   //Antes 4 = RF INT or 15
   pinMode(4, INPUT_PULLUP);
   attachInterrupt(4, msg_flag_isr, FALLING);
+
+  timer = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer, &onTimer, true);
+  timerAlarmWrite(timer, 500000, true);
+  timerAlarmEnable(timer);
 }
 
 void loop() {
+
+  if(reached_timer)
+  {
+    txBuffer[1] = 0xAA;// Seems not important
+    txBuffer[2] = 0xFF;// Seems not important
+    txBuffer[3] = 0xBB;
+    txBuffer[4] = 0xCC;
+    uint8_t len = 5;
+    txBuffer[0] = len -1;
+    rf_comm.sendPacket(txBuffer, len);
+    Serial.println("Sent");
+
+    reached_timer = 0;
+  }
   
-  // put your main code here, to run repeatedly:
   if(msg_flag)
   {
     rf_comm.get_packet(rxBuffer, pkt_size);
@@ -50,5 +77,4 @@ void loop() {
     Serial.println("");
     //pkt_size = 0;
   }
-
 }
