@@ -31,35 +31,23 @@ hw_timer_t * pid_timer = NULL;
 // PID variables
 double pwm = 1000.0;
 double prev_error = 0;
-double integral = 0;
+double prev_u = 0;
 double set_point = 0;
 
-/*double kp = 198.5112;
-double ki = 827.13;
-double kd = 0;*/
-
-/*
-double kp = 22.2730;
-double ki = 69.603;
-double kd = 0;
-*/
-
-double kp = 26.0576;
-double ki = 76.64;
-double kd = 0;
+double kp = 24.8638188;
+double ki = 1.084976124;
 
 // Sampling ISR
 void IRAM_ATTR pid_isr() {
   
   double error = set_point - voltage;
-  double proportional = kp*error;
-  double derivative = kd*(error - prev_error)/0.005;
-  integral +=  ki*(error + prev_error)*(0.005/2.0);
+  double u = prev_u + (kp+ki)*error - kp*prev_error;
   prev_error = error;
+  prev_u = u;
 
-  double pwm_control_law = proportional + integral + derivative;
-  pwm = constrain(1000.0 + pwm_control_law, 1000.0, 2000.0);
-
+  pwm = constrain(1000.0 + u, 1000.0, 2000.0);
+  Serial.print(u);
+  Serial.print(" ");
   Serial.print(set_point);
   Serial.print(" ");
   Serial.println(voltage);

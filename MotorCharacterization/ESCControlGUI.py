@@ -1,5 +1,6 @@
 from tkinter import *
 import serial
+from time import sleep
 
 def task():
     print(str(var.get()))
@@ -10,7 +11,9 @@ def task():
 
 
 
-ser = serial.Serial('COM39', 115200)
+ser = serial.Serial('COM38', 115200)
+
+sleep(2)
 
 root = Tk()
 var = DoubleVar()

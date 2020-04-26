@@ -1,11 +1,19 @@
-#define RXD2 9//16
-#define TXD2 15// 17
+#define RXD2 9
+#define TXD2 15
 
 // HW Pins
-#define PWMA 25//32
+#define PWMA 32
 #define PWMB 33
 #define PWMC 14
 #define PWMD 10
+#define SERVO1_X 13
+#define SERVO1_Y 12
+#define SERVO2_X 26
+#define SERVO2_Y 25
+#define ADCA 37
+#define ADCB 38
+#define ADCC 34
+#define ADCD 35
 
 // setting PWM properties
 #define FREQ 50
@@ -55,7 +63,7 @@ void loop(){
     }
   }
 
-  Serial2.println(analogRead(35)*33.0/4095.0);
+  Serial2.println(analogRead(ADCA)*33.0/4095.0);
 
   // Write PWM
   ledcWrite(ledChannelA, MS_TO_PWM(pwm));
