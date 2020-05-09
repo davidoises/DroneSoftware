@@ -195,6 +195,7 @@ void CC1125::receive(void)
 {
   uint8_t marcstate = 0xFF;             //set unknown/dummy state value
   set_idle();
+  commandStrobe(SFRX);
   commandStrobe(SRX);
   do
   {

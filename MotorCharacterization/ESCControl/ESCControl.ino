@@ -37,7 +37,7 @@ void setup(){
   Serial.println("");
   
   ledcSetup(ledChannelA, FREQ, RESOLUTION);
-  ledcAttachPin(PWMA, ledChannelA);
+  ledcAttachPin(PWMD, ledChannelA);
   ledcWrite(ledChannelA, MS_TO_PWM(1000));
 }
  

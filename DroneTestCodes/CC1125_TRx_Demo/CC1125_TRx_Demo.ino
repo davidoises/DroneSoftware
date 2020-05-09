@@ -23,8 +23,8 @@ void msg_flag_isr()
 
 void setup() {
   // put your setup code here, to run once:
-  //Serial.begin(115200);
-  Serial.begin(500000);
+  Serial.begin(115200);
+  //Serial.begin(500000);
   delay(500);
   
   rf_comm.begin();
@@ -40,7 +40,7 @@ void setup() {
 
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 500000, true);
+  timerAlarmWrite(timer, 1000000, true);
   timerAlarmEnable(timer);
 }
 
@@ -75,6 +75,6 @@ void loop() {
       Serial.print(", ");
     }
     Serial.println("");
-    //pkt_size = 0;
+    pkt_size = 0;
   }
 }

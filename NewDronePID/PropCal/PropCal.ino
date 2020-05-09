@@ -1,6 +1,15 @@
 #include "BMX055.h"
 #include "SensorFusion.h"
 
+// UI Control variables
+double eStop = 1;
+double throttle = 1000.0;
+double kp = 0;
+double kd = 0;
+double ki = 0;
+
+#include "ui_conf.h"
+
 // BMX055 IMU addresses
 #define AM_DEV 0x18
 #define G_DEV 0x68
@@ -33,6 +42,8 @@
 #define MAX_PERIOD 1000.0f/((double)FREQ)
 #define MS_TO_PWM(x) ((double)x)*((double)MAX_PWM)/(((double)MAX_PERIOD)*1000.0f)
 
+#define ledChannel ledChannelA
+
 // Attitude sampling
 #define ORIENTATION_SAMPLING 0.004f
 
@@ -49,7 +60,7 @@ void IRAM_ATTR orientation_isr() {
   update_orientation = 1;
 }
 
-unsigned long prev_time = 0;
+// Measurement variables
 double roll_rate = 0;
 double pitch_rate = 0;
 double yaw_rate = 0;
@@ -64,50 +75,83 @@ void setup() {
   
   Wire.begin(); // ESP32 default SDa=21, SCL=22
   Wire.setClock(400000);
+
+  ledcSetup(ledChannelA, FREQ, RESOLUTION);
+  ledcAttachPin(PWMA, ledChannelA); // negative torque
+  ledcWrite(ledChannelA, MS_TO_PWM(1000));
+
+  ledcSetup(ledChannelB, FREQ, RESOLUTION);
+  ledcAttachPin(PWMB, ledChannelB); // negative torque
+  ledcWrite(ledChannelB, MS_TO_PWM(1000));
+
+  ledcSetup(ledChannelC, FREQ, RESOLUTION);
+  ledcAttachPin(PWMC, ledChannelC); // Positive toruqe
+  ledcWrite(ledChannelC, MS_TO_PWM(1000));
+
+  ledcSetup(ledChannelD, FREQ, RESOLUTION);
+  ledcAttachPin(PWMD, ledChannelD); // Positive toruqe
+  ledcWrite(ledChannelD, MS_TO_PWM(1000));
   
   imu.acc_init();
   imu.gyr_init();
-  imu.mag_init();
+  //imu.mag_init();
   delay(1000);
+
+  #if WIFI_GUI
+  Blynk.begin(auth, ssid, pass);
+  #else
+  Blynk.begin(auth);
+  #endif
 
   orientation_timer = timerBegin(0, 80, true);
   timerAttachInterrupt(orientation_timer, &orientation_isr, true);
   timerAlarmWrite(orientation_timer, ORIENTATION_SAMPLING*1000000.0, true);
+
+  delay(4000);
   
   orientation.set_yaw_offset(imu.magnetometer.yaw_offset);
   orientation.init(0, 0, MAG_TARGET);
   timerAlarmEnable(orientation_timer);
-
-  prev_time = millis();
 }
 
 void loop() {
+  
+  Blynk.run();
+
+  if(eStop)
+  {
+    ledcWrite(ledChannel, MS_TO_PWM(1000));
+  }
+  
   if(update_orientation)
   {
-    unsigned long current_time = millis();
-    double dt = current_time - prev_time;
-    prev_time = millis();
     
     imu.get_gyr_data();
     imu.get_acc_data();
-    imu.get_mag_data();
+    //imu.get_mag_data();
 
     
     orientation.fuse_sensors(imu.accelerometer.x, imu.accelerometer.y, imu.accelerometer.z,
                             imu.gyroscope.x*imu.gyroscope.res, imu.gyroscope.y*imu.gyroscope.res, imu.gyroscope.z*imu.gyroscope.res,
                             imu.magnetometer.x, imu.magnetometer.y, imu.magnetometer.z);
-    
+
+    double ax = imu.accelerometer.x*imu.accelerometer.res;
+    double ay = imu.accelerometer.y*imu.accelerometer.res;
+    double az = imu.accelerometer.z*imu.accelerometer.res;
+    double total_acc_vec = sqrt(pow(ax, 2) + pow(ay, 2) + pow(az, 2));
+
     roll_rate = roll_rate*0.7 + imu.gyroscope.x*imu.gyroscope.res*0.3;
     pitch_rate = pitch_rate*0.7 + imu.gyroscope.y*imu.gyroscope.res*0.3;
     yaw_rate = yaw_rate*0.7 + imu.gyroscope.z*imu.gyroscope.res*0.3;
 
-    Serial.print(dt);
-    Serial.print(" ");
-    Serial.print(orientation.get_roll()*180.0/PI);
+    if(!eStop)
+    {
+      ledcWrite(ledChannel, MS_TO_PWM(throttle));
+    }
+    
+    Serial.print(total_acc_vec);
     Serial.print(" ");
     Serial.print(roll_rate);
-    Serial.print(" ");
-    Serial.print(orientation.get_pitch()*180.0/PI);
     Serial.print(" ");
     Serial.print(pitch_rate);
     Serial.print(" ");
