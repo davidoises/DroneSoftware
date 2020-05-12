@@ -105,13 +105,7 @@ void loop() {
     Serial.print(" ");
     Serial.print(orientation.get_roll()*180.0/PI);
     Serial.print(" ");
-    Serial.print(roll_rate);
-    Serial.print(" ");
-    Serial.print(orientation.get_pitch()*180.0/PI);
-    Serial.print(" ");
-    Serial.print(pitch_rate);
-    Serial.print(" ");
-    Serial.println(yaw_rate);
+    Serial.println(orientation.get_pitch()*180.0/PI);
     
     update_orientation = 0;
   }

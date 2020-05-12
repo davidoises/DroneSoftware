@@ -4,19 +4,19 @@
 // UI Control variables
 double eStop = 1;
 double throttle = 1000.0;
-double kr = 0;
+double kr = 0; //11
 
-double kp_roll = 3.739;
-double ki_roll = 3.07;//2.763/0.9;
-double kd_roll = 0.559l;//0.503/0.9;
+double kp_roll = 3.7;
+double ki_roll = 3.1;
+double kd_roll = 0.5;
 
-double kp_pitch = kp_roll;//3.739;//3.859;
-double ki_pitch = ki_roll*0.95;//2.763;//3.203;
-double kd_pitch = kd_roll*0.95;//0.503;//0.638;
+double kp_pitch = kp_roll;
+double ki_pitch = ki_roll*1.1;
+double kd_pitch = kd_roll*1.1;
 
-double kp_yaw = 0;
+double kp_yaw = 1;
 double ki_yaw = 0;
-double kd_yaw = 0;
+double kd_yaw = 0.2;
 
 double roll_setpoint = 0;
 double pitch_setpoint = 0;
@@ -188,7 +188,7 @@ void loop() {
 
     double roll_rate_setpoint = kr*(roll_setpoint - orientation.get_roll()*180.0/PI);
     double pitch_rate_setpoint = kr*(pitch_setpoint - orientation.get_pitch()*180.0/PI);
-    double yaw_rate_setpoint = kr*(yaw_setpoint - orientation.get_yaw()*180.0/PI);
+    double yaw_rate_setpoint = 0;//kr*(yaw_setpoint - orientation.get_yaw()*180.0/PI);
     
     if(throttle >= 1100)
     {
@@ -196,6 +196,7 @@ void loop() {
       double roll_error = roll_rate_setpoint - roll_rate;
       double roll_diff = (roll_error - roll_prev_error)/dt;
       roll_integral += roll_error*dt;
+      roll_integral = constrain(roll_integral, -100, 100);
       roll_prev_error = roll_error;
       double roll_pid = kp_roll*roll_error + ki_roll*roll_integral + kd_roll*roll_diff;
 
@@ -203,6 +204,7 @@ void loop() {
       double pitch_error = pitch_rate_setpoint - pitch_rate;
       double pitch_diff = (pitch_error - pitch_prev_error)/dt;
       pitch_integral += pitch_error*dt;
+      pitch_integral = constrain(roll_integral, -100, 100);
       pitch_prev_error = pitch_error;
       double pitch_pid = kp_pitch*pitch_error + ki_pitch*pitch_integral + kd_pitch*pitch_diff;
 
@@ -213,17 +215,21 @@ void loop() {
       yaw_prev_error = yaw_error;
       double yaw_pid = kp_yaw*yaw_error + ki_yaw*yaw_integral + kd_yaw*yaw_diff;
 
-      /*ma = constrain(throttle - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
+      ma = constrain(throttle - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
       mb = constrain(throttle - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
       mc = constrain(throttle + roll_pid/4.0 + pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
-      md = constrain(throttle + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);*/
+      md = constrain(throttle + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
 
-      ma = constrain(throttle - roll_pid/4.0 - pitch_pid/4.0, 1100, 2000);
+      /*ma = constrain(throttle - roll_pid/4.0 - pitch_pid/4.0, 1100, 2000);
       mb = constrain(throttle - roll_pid/4.0 + pitch_pid/4.0, 1100, 2000);
       mc = constrain(throttle + roll_pid/4.0 + pitch_pid/4.0, 1100, 2000);
-      md = constrain(throttle + roll_pid/4.0 - pitch_pid/4.0, 1100, 2000);
+      md = constrain(throttle + roll_pid/4.0 - pitch_pid/4.0, 1100, 2000);*/
       
     }
+
+    /*Serial.print(orientation.get_roll()*180.0/PI);
+    Serial.print(" ");
+    Serial.println(orientation.get_pitch()*180.0/PI);*/
 
     if(!eStop)
     {

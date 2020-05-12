@@ -112,7 +112,7 @@ typedef struct {
   double x_offset = -3.511194;
   double y_offset = -34.861936;
   double z_offset = -35.088470;
-  double soft_iron[9] = {16.914818, -0.006747, -0.441757, -0.006747, 16.564845, -0.168402, -0.441757, -0.168402, 18.401436};
+  double soft_iron[9] = {16.050133, 0.041485, -0.194715, 0.041485, 15.947023, 0.036212, -0.194715, 0.036212, 17.987555};
   double yaw_offset = 0;
   double x;
   double y;

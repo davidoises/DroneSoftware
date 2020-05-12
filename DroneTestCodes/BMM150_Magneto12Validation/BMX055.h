@@ -31,6 +31,7 @@
 #define G_BGW_SOFT_RESET    0x14 // Reset register
 #define G_RANGE             0x0F // Range settings
 #define G_BW                0x10 // Bandwidth settings
+#define G_RATE_HBW          0x13 // Select (un)filtered output and shadowing enabling
 #define G_A_FOC             0x32 // Fast offset compensation settings
 #define G_OFC1              0x36
 #define G_OFC2              0x37
@@ -72,7 +73,7 @@
 
 typedef struct {
   uint8_t chipid;
-  uint8_t range;
+  uint16_t range;
   float res;
   float bandwidth;
   float sample_time;
@@ -108,10 +109,10 @@ typedef struct {
   
 
   // Magnetometer measurements
-  double x_offset = -31.021329;
-  double y_offset = -20.179457;
-  double z_offset = -36.624265;
-  double soft_iron[9] = {16.676477, -0.013163, -0.394541, -0.013163, 16.387214, -0.045535, -0.394541, -0.045535, 18.053497};
+  double x_offset = -3.511194;
+  double y_offset = -34.861936;
+  double z_offset = -35.088470;
+  double soft_iron[9] = {16.050133, 0.041485, -0.194715, 0.041485, 15.947023, 0.036212, -0.194715, 0.036212, 17.987555};
   double yaw_offset = 0;
   double x;
   double y;

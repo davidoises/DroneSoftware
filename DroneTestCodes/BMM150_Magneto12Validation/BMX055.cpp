@@ -15,17 +15,18 @@ void BMX055::acc_init()
 {
   // Reset accelerometer and wait 1.8ms
   acc_write(AM_BGW_SOFT_RESET, 0xB6);
-  delay(2);
+  delay(4);
 
-  // Set G range to +/- 2g
+  // Set G range to 0x03 = +/- 2g, 0x08 = +/- 8g, needs to be in 2g for fast offset compnesation
   acc_write(AM_PMU_RANGE, 0x03);
 
-  // St bandwidth to 7.81Hz
-  acc_write(AM_PMU_BW, 0x08);
+  // St bandwidth to 0x08 = 7.81Hz, 0x0B = 62.5
+  acc_write(AM_PMU_BW, 0x0B);
 
+  
   // Set offset targets to z=1g, y=0g, x0g
   acc_write(AM_OFC_SETTING, 0x20); // 0010 0000
-
+  
   // Enable FOC for x axis
   acc_write(AM_OFC_CTRL, 0x20);
   while(!(acc_read(AM_OFC_CTRL)& 0x10));
@@ -38,6 +39,9 @@ void BMX055::acc_init()
   acc_write(AM_OFC_CTRL, 0x60);
   while(!(acc_read(AM_OFC_CTRL)& 0x10));
 
+  // Set G range to 0x03 = +/- 2g, 0x08 = +/- 8g, needs to be in 2g for fast offset compnesation
+  acc_write(AM_PMU_RANGE, 0x08);
+
   get_acc_settings();
 }
 
@@ -45,16 +49,23 @@ void BMX055::gyr_init()
 {
   // Reset gyroscope and wait 1ms
   gyr_write(G_BGW_SOFT_RESET, 0xB6);
-  delay(2);
+  delay(4);
+  //delay(2);
 
-  // Set range to +/- 250 deg/s
-  gyr_write(G_RANGE, 0x03);
+  // Set range to 0x03 = +/- 250 deg/s, 0x02 =+/- 500deg/s
+  gyr_write(G_RANGE, 0x02);
+  //gyr_write(G_RANGE, 0x02);
 
-  // 100Hz ODR and lp-filter at 12Hz
-  gyr_write(G_BW, 0x05); //05
+  // 0x05 = 100Hz ODR and lp-filter at 12Hz. 0x04 = 200Hz lpf at 23Hz. 0x03 = 400Hz lpf at 47Hz
+  gyr_write(G_BW, 0x04); //05
+
+  //RATE_HBW
+  gyr_write(G_RATE_HBW, 0x00); // Enables data shadowinf and filtered output
 
   // 64 samples @ 100hZ and enables it for x
   gyr_write(G_A_FOC, 0x5F);
+
+  //maybe read 0x1B bit 7 should be 0
   delay(640);
 
   get_gyr_settings();
@@ -478,9 +489,9 @@ void BMX055::get_gyr_settings()
   
   Serial.print("Gyroscope range of +/- ");
   Serial.print(gyroscope.range);
-  Serial.print("g with a resolution of ");
+  Serial.print("deg/s with a resolution of ");
   Serial.print(gyroscope.res, 6);
-  Serial.println(" m/s^2");
+  Serial.println(" deg/s");
   
   Serial.print("Gyroscope bandwidth of ");
   Serial.print(gyroscope.bandwidth);
@@ -490,13 +501,13 @@ void BMX055::get_gyr_settings()
   
   Serial.print("X offset is ");
   Serial.print(gyroscope.x_offset);
-  Serial.println(" m/s^2");
+  Serial.println(" deg/s");
   Serial.print("Y offset is ");
   Serial.print(gyroscope.y_offset);
-  Serial.println(" m/s^2");
+  Serial.println(" deg/s");
   Serial.print("Z offset is ");
   Serial.print(gyroscope.z_offset);
-  Serial.println(" m/s^2");
+  Serial.println(" deg/s");
 #endif
 }
 
