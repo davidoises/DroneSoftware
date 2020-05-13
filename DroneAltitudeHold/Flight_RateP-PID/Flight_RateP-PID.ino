@@ -63,7 +63,7 @@ double yaw_setpoint = 0;
 
 // Rolling average strcture
 typedef struct {
-  double memory[20] = {0};
+  double memory[30] = {0};
   double sum = 0;
   uint8_t index = 0;
   double samples = 20.0;
@@ -201,7 +201,7 @@ void setup() {
 
 void loop() {
   
-  //Blynk.run();
+  Blynk.run();
 
   if(ui_callback)
   {
@@ -287,12 +287,6 @@ void loop() {
       
     }
 
-    /*Serial.print(dt*1000.0);
-    Serial.print(" ");
-    Serial.print(orientation.get_roll()*180.0/PI);
-    Serial.print(" ");
-    Serial.println(orientation.get_pitch()*180.0/PI);*/
-
     if(!eStop)
     {
       ledcWrite(ledChannelA, MS_TO_PWM(ma));
@@ -336,7 +330,7 @@ void loop() {
       ms5611.requestPressure();
     }
 
-    filtered_pressure = 0.97*filtered_pressure + 0.03*unfiltered_pressure;
+    filtered_pressure = 0.8*filtered_pressure + 0.2*unfiltered_pressure;
 
     alt_av.sum -= alt_av.memory[alt_av.index];
     alt_av.memory[alt_av.index] = filtered_pressure;
@@ -345,16 +339,16 @@ void loop() {
     if(alt_av.index == alt_av.samples) alt_av.index = 0;
 
     double pressure = alt_av.sum/alt_av.samples;
-    if(abs(pressure-prev_pressure) < 0.4) pressure = prev_pressure;
+    if(abs(pressure-prev_pressure) < 0.2) pressure = prev_pressure;
     prev_pressure = pressure;
     
-    Serial.print(dt);
+    /*Serial.print(dt);
     Serial.print(" ");
     Serial.print(orientation.get_roll()*180.0/PI);
     Serial.print(" ");
-    Serial.println(orientation.get_pitch()*180.0/PI);
+    Serial.print(orientation.get_pitch()*180.0/PI);
     Serial.print(" ");
-    Serial.println(pressure);
+    Serial.println(ms5611.getAltitude(pressure)*100.0);*/
     
     update_altitude = 0;
   }
