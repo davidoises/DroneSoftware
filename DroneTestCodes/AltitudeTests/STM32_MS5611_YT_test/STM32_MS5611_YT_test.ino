@@ -47,6 +47,7 @@ void setup() {
   Serial.begin(500000);                                          //Set the serial output to 57600 kbps.
   delay(100);
   //Check if the MS5611 is responding.
+  //HWire.begin(9, 15, 400000);                                                  //Start the I2C as master
   HWire.begin();                                                  //Start the I2C as master
   HWire.beginTransmission(MS5611_address);                        //Start communication with the MS5611.
   if (HWire.endTransmission() != 0) {                                               //If the exit status is not 0 an error occurred.
@@ -160,11 +161,14 @@ void loop() {
   }
 
   if (barometer_counter == 3) {                                                         //When the barometer counter is 3
-    Serial.print(top_line);
-    Serial.print(",");
-    Serial.print(bottom_line);
-    Serial.print(",");
-    Serial.println(actual_pressure);
+    //Serial.print(top_line);
+    //Serial.print(",");
+    //Serial.print(bottom_line);
+    //Serial.print(",");
+    //Serial.print(actual_pressure);
+    //Serial.print(",");
+    double alt = 44330.0f * (1.0f - pow(actual_pressure / 101325.0f, 0.1902949f));
+    Serial.println(alt*100.0);
     barometer_counter = 0;                                                              //Set the barometer counter to 0 for the next measurements.
 
   }

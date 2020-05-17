@@ -19,9 +19,9 @@ double kp_yaw = 1;
 double ki_yaw = 0;
 double kd_yaw = 0.2;
 
-double kp_alt = 4;//0.5;
-double ki_alt = 0.01;
-double kd_alt = 2;//0.2;
+double kp_alt = 0;//10
+double ki_alt = 0;
+double kd_alt = 0;//10
 
 double roll_setpoint = 0;
 double pitch_setpoint = 0;
@@ -67,10 +67,11 @@ double yaw_setpoint = 0;
 
 // Rolling average strcture
 typedef struct {
-  double memory[30] = {0};
+  double memory[40] = {0};
   double sum = 0;
   uint8_t index = 0;
   double samples = 20.0;
+  uint8_t averaged_samples = 0;
 }RollingMemory;
 
 // Class objects for data acquisition and sensor fusion
@@ -106,14 +107,31 @@ double roll = 0;
 double pitch = 0;
 double yaw = 0;
 
+// Altitude acceleration measurements
+double initial_acc = 0;
+double lpf_acc_z = 0;
+RollingMemory acc_av;
+
 // Altitude measurement variables
 unsigned long altitude_prev_time = 0;
 uint32_t raw_temp = 0;
 double unfiltered_pressure = 0;
-double filtered_pressure = 0;
+double pressure = 0;
 double prev_pressure = 0;
-double altitude = 0;
+double initial_alt = 0;
 RollingMemory pres_av;
+
+// Used to get calibration samples
+unsigned long initial_time = 0;
+uint8_t sampled_calibration = 0;
+
+// Complementary kalman
+double zk =0;
+double zdk =0;
+double k2 = 35.0/20.0; // if numerator is bigger it means noisier accelerometer
+double k1 = sqrt((2*k2));
+double prev_az = 0;
+double az = 0;
 
 // Orientation PID calculation variables
 double roll_integral = 0;
@@ -125,10 +143,11 @@ double yaw_prev_error = 0;
 
 // Altitude PID calculation variables
 double alt_integral = 0;
-double alt_prev_error = 0;
+//double alt_prev_error = 0;
+double alt_prev_diff = 0;
 double alt_setpoint = 0;
 double alt_throttle_pid = 0;
-double alt_lpf_diff = 0;
+
 
 void setup() {
 
@@ -173,21 +192,23 @@ void setup() {
   imu.acc_init();
   imu.gyr_init();
   //imu.mag_init();
+  for(int i = 0; i < 200; i++)
+  {
+    imu.get_acc_data();
+    delay(5);
+  }
+  for(int i = 0; i < 100; i++)
+  {
+    imu.get_acc_data();
+    initial_acc += imu.accelerometer.z*imu.accelerometer.res;
+    delay(4);
+  }
+  initial_acc /= 100.0;
+  acc_av.samples = 20.0;
 
   // Altitude sensor initialization
   ms5611.begin();
   ms5611.setOversampling(MS5611_ULTRA_HIGH_RES);
-  for(int i = 0; i<pres_av.samples; i++)
-  { 
-    double pressure = ms5611.readPressure();
-    pres_av.memory[i] = ms5611.getAltitude(pressure)*100.0;
-    //pres_av.memory[i] = ms5611.readPressure();
-    pres_av.sum += pres_av.memory[i];
-  }
-  filtered_pressure = pres_av.memory[(int)pres_av.samples-1];
-
-  delay(2000);
-
   // Get the first measurements for future calculations
   ms5611.requestTemperature();
   delay(ALTITUDE_SAMPLING*1000.0);
@@ -202,21 +223,37 @@ void setup() {
   //orientation.set_yaw_offset(imu.magnetometer.yaw_offset);
   orientation.init(0, 0, MAG_TARGET);
 
-  while(throttle < 1100)
+  /*while(throttle < 1100)
   {
     Blynk.run();
-  }
+  }*/
   
   // Start timer
   timerAlarmEnable(orientation_timer);
   
   orientation_prev_time = millis();
   altitude_prev_time = millis();
+  initial_time = millis();
 }
 
 void loop() {
   
   Blynk.run();
+
+  // Sampled calibration flag: indicates inintial values for some sensores have been stored
+  if(sampled_calibration < 2)
+  {
+    if(sampled_calibration == 0 && (millis()-initial_time) > 2500)
+    {
+      // Calibration value for altitude
+      initial_alt = pressure;
+      sampled_calibration = 1;
+    }
+    if(sampled_calibration < 2 && (millis()-initial_time) > 3000)
+    {
+      sampled_calibration = 2;
+    }
+  }
 
   if(ui_callback)
   {    
@@ -232,9 +269,8 @@ void loop() {
   {
     if(alt_hold)
     {
-      alt_setpoint = altitude;
+      alt_setpoint = pressure;
       alt_integral = 0;
-      alt_prev_error = 0;
     }
     else
     {
@@ -254,30 +290,53 @@ void loop() {
   
   if(update_orientation)
   {
+    // Loop time for pid and time integration
     unsigned long current_time = millis();
     double dt = (current_time - orientation_prev_time)/1000.0;
     orientation_prev_time = millis();
-    
+
+    // Imu data collection and attitude sensor fusion
     imu.get_gyr_data();
     imu.get_acc_data();
     //imu.get_mag_data();
-
-    
     orientation.fuse_sensors(imu.accelerometer.x, imu.accelerometer.y, imu.accelerometer.z,
                             imu.gyroscope.x*imu.gyroscope.res, imu.gyroscope.y*imu.gyroscope.res, imu.gyroscope.z*imu.gyroscope.res,
                             imu.magnetometer.x, imu.magnetometer.y, imu.magnetometer.z);
+
+
+    // Angular position measurement
+    roll = orientation.get_roll();
+    pitch = orientation.get_pitch();
     
+    // Angular rate measurements
     roll_rate = roll_rate*0.7 + imu.gyroscope.x*imu.gyroscope.res*0.3;
     pitch_rate = pitch_rate*0.7 + imu.gyroscope.y*imu.gyroscope.res*0.3;
     yaw_rate = yaw_rate*0.7 + imu.gyroscope.z*imu.gyroscope.res*0.3;
+
+    // Vertical acceleration calculation and filtering
+    prev_az = az;
+    az = (imu.accelerometer.z*cos(pitch)*cos(roll) - imu.accelerometer.x*sin(pitch) + imu.accelerometer.y*cos(pitch)*sin(roll))*imu.accelerometer.res - initial_acc;
+    acc_av.sum -= acc_av.memory[acc_av.index];
+    acc_av.memory[acc_av.index] = az;
+    acc_av.sum += acc_av.memory[acc_av.index];
+    acc_av.index++;
+    if(acc_av.index == acc_av.samples) acc_av.index = 0;
+    double acc_z_av = acc_av.sum/acc_av.samples;
+    lpf_acc_z = 0.65*lpf_acc_z + 0.36*acc_z_av; // This low-pass-filtered signal will be used for PI+D velocity controller
+    
+    // Vertical channel velocity and position complementary-kalman filter
+    double dz = prev_pressure - zk;
+    if(sampled_calibration != 2) dz = 0;
+    zk = zk + (dt*dt/2.0)*prev_az + dt*zdk +(k1+k2*dt/2.0)*dt*dz;
+    zdk = zdk + dt*prev_az + k2*dt*dz;
 
     double ma = throttle;
     double mb = throttle;
     double mc = throttle;
     double md = throttle;
 
-    double roll_rate_setpoint = kr*(roll_setpoint - orientation.get_roll()*180.0/PI);
-    double pitch_rate_setpoint = kr*(pitch_setpoint - orientation.get_pitch()*180.0/PI);
+    double roll_rate_setpoint = kr*(roll_setpoint - roll*180.0/PI);
+    double pitch_rate_setpoint = kr*(pitch_setpoint - pitch*180.0/PI);
     double yaw_rate_setpoint = 0;//kr*(yaw_setpoint - orientation.get_yaw()*180.0/PI);
     
     if(throttle >= 1100)
@@ -305,22 +364,15 @@ void loop() {
       yaw_prev_error = yaw_error;
       double yaw_pid = kp_yaw*yaw_error + ki_yaw*yaw_integral + kd_yaw*yaw_diff;
 
-      ma = constrain(throttle + alt_throttle_pid - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
-      mb = constrain(throttle + alt_throttle_pid - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
-      mc = constrain(throttle + alt_throttle_pid + roll_pid/4.0 + pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
-      md = constrain(throttle + alt_throttle_pid + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
+      ma = constrain(throttle - alt_throttle_pid - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
+      mb = constrain(throttle - alt_throttle_pid - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
+      mc = constrain(throttle - alt_throttle_pid + roll_pid/4.0 + pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
+      md = constrain(throttle - alt_throttle_pid + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
 
       /*ma = constrain(throttle - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
       mb = constrain(throttle - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
       mc = constrain(throttle + roll_pid/4.0 + pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
       md = constrain(throttle + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);*/
-
-      /*Serial.print(roll_pid/4.0);
-      Serial.print(" ");
-      Serial.print(pitch_pid/4.0);
-      Serial.print(" ");*/
-      Serial.println(throttle + alt_throttle_pid);
-      
     }
 
     if(!eStop)
@@ -354,54 +406,30 @@ void loop() {
       }
       else if(tp_counter == 19)
       {
-        double pressure = ms5611.readPressure(raw_temp);
-        unfiltered_pressure = ms5611.getAltitude(pressure)*100.0;
-        //unfiltered_pressure = ms5611.readPressure(raw_temp);
+        unfiltered_pressure = ms5611.readPressure(raw_temp);
         ms5611.requestTemperature();
       }
       else
       {
-        //unfiltered_pressure = ms5611.readPressure(raw_temp);
-        double pressure = ms5611.readPressure(raw_temp);
-        unfiltered_pressure = ms5611.getAltitude(pressure)*100.0;
+        unfiltered_pressure = ms5611.readPressure(raw_temp);
         ms5611.requestPressure();
       }
   
-      filtered_pressure = 0.9*filtered_pressure + 0.1*unfiltered_pressure;
-  
       pres_av.sum -= pres_av.memory[pres_av.index];
-      pres_av.memory[pres_av.index] = filtered_pressure;
+      pres_av.memory[pres_av.index] = ms5611.getAltitude(unfiltered_pressure) - initial_alt;
       pres_av.sum += pres_av.memory[pres_av.index];
       pres_av.index++;
       if(pres_av.index == pres_av.samples) pres_av.index = 0;
-      
-      double pressure = pres_av.sum/pres_av.samples;
-      if(abs(pressure-prev_pressure) < 2) pressure = prev_pressure;
       prev_pressure = pressure;
-      altitude = pressure;
+      pressure = pres_av.sum/pres_av.samples;
+
+
   
       // Calculate PID if alt_hold is activated
-      if(alt_hold)
-      {
-        double alt_error = alt_setpoint - altitude;
-        double alt_diff = (alt_error - alt_prev_error)/dt;
-        alt_lpf_diff = 0.98*alt_lpf_diff + 0.015*alt_diff;
-        alt_integral += alt_error*dt;
-  
-        alt_prev_error = alt_error;
+      //if(alt_hold)
+      //{
         
-        alt_throttle_pid = kp_alt*alt_error + ki_alt*alt_integral + kd_alt*alt_lpf_diff;
-        if((throttle + alt_throttle_pid) > 1420)
-        {
-          alt_throttle_pid = 1420-throttle;
-        }
-        if((throttle + alt_throttle_pid) < 1370)
-        {
-          alt_throttle_pid = 1370-throttle;
-        }
-        //alt_throttle_pid = constrain(alt_throttle_pid, -200, 200);
-        
-      }
+      //}
       update_altitude = 0;
     }
   }

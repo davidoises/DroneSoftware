@@ -78,6 +78,8 @@ void loop()
   Blynk.run();
   if(ui_callback)
   {
+    eStop != eStop;
+    Blynk.virtualWrite(V0, eStop);
     Serial.print("eStop= ");
     Serial.print(eStop);
     Serial.print("; throttle= ");
@@ -89,5 +91,6 @@ void loop()
     Serial.print("; kd= ");
     Serial.println(kd);
     ui_callback = 0;  
+    delay(100);
   }
 }

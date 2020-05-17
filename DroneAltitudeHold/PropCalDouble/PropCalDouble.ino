@@ -42,7 +42,8 @@ double ki = 0;
 #define MAX_PERIOD 1000.0f/((double)FREQ)
 #define MS_TO_PWM(x) ((double)x)*((double)MAX_PWM)/(((double)MAX_PERIOD)*1000.0f)
 
-#define ledChannel ledChannelC
+#define ledChannel1 ledChannelD
+#define ledChannel2 ledChannelC
 
 // Attitude sampling
 #define ORIENTATION_SAMPLING 0.004f
@@ -120,7 +121,8 @@ void loop() {
 
   if(eStop)
   {
-    ledcWrite(ledChannel, MS_TO_PWM(1000));
+    ledcWrite(ledChannel1, MS_TO_PWM(1000));
+    ledcWrite(ledChannel2, MS_TO_PWM(1000));
   }
   
   if(update_orientation)
@@ -146,7 +148,8 @@ void loop() {
 
     if(!eStop)
     {
-      ledcWrite(ledChannel, MS_TO_PWM(throttle));
+      ledcWrite(ledChannel1, MS_TO_PWM(throttle));
+      ledcWrite(ledChannel2, MS_TO_PWM(throttle));
     }
     
     Serial.print(total_acc_vec);

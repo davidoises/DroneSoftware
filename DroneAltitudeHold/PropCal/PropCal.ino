@@ -42,7 +42,7 @@ double ki = 0;
 #define MAX_PERIOD 1000.0f/((double)FREQ)
 #define MS_TO_PWM(x) ((double)x)*((double)MAX_PWM)/(((double)MAX_PERIOD)*1000.0f)
 
-#define ledChannel ledChannelC
+#define ledChannel ledChannelB
 
 // Attitude sampling
 #define ORIENTATION_SAMPLING 0.004f
