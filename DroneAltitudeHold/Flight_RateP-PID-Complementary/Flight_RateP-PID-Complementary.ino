@@ -15,13 +15,17 @@ double kp_pitch = kp_roll;
 double ki_pitch = ki_roll*1.1;
 double kd_pitch = kd_roll*1.1;
 
+kp_roll *= 1.1;
+ki_roll *= 1.1;
+kd_roll *= 1.1;
+
 double kp_yaw = 1;
 double ki_yaw = 0;
 double kd_yaw = 0.2;
 
-double kp_alt = 0;//10
-double ki_alt = 0;
-double kd_alt = 0;//10
+double kp_vel_z = 0;//10
+double ki_vel_z = 0;
+double kd_vel_z = 0;//10
 
 double roll_setpoint = 0;
 double pitch_setpoint = 0;
@@ -108,6 +112,8 @@ double pitch = 0;
 double yaw = 0;
 
 // Altitude acceleration measurements
+double acc_z = 0;
+double prev_acc_z = 0;
 double initial_acc = 0;
 double lpf_acc_z = 0;
 RollingMemory acc_av;
@@ -126,12 +132,10 @@ unsigned long initial_time = 0;
 uint8_t sampled_calibration = 0;
 
 // Complementary kalman
-double zk =0;
-double zdk =0;
+double pos_z =0;
+double vel_Z =0;
 double k2 = 35.0/20.0; // if numerator is bigger it means noisier accelerometer
 double k1 = sqrt((2*k2));
-double prev_az = 0;
-double az = 0;
 
 // Orientation PID calculation variables
 double roll_integral = 0;
@@ -142,12 +146,9 @@ double yaw_integral = 0;
 double yaw_prev_error = 0;
 
 // Altitude PID calculation variables
-double alt_integral = 0;
-//double alt_prev_error = 0;
-double alt_prev_diff = 0;
+double vel_z_integral = 0;
 double alt_setpoint = 0;
-double alt_throttle_pid = 0;
-
+double vel_z_pid = 0;
 
 void setup() {
 
@@ -162,7 +163,7 @@ void setup() {
   // I2C initialization
   Wire.begin(); // ESP32 default SDa=21, SCL=22
   Wire.setClock(400000);
-  Wire1.begin(9, 15, 400000); // SDA = 9, SCL = 15
+  //Wire1.begin(9, 15, 400000); // SDA = 9, SCL = 15
 
   // ESC initialization, all set to 1000ms pulse
   ledcSetup(ledChannelA, FREQ, RESOLUTION);
@@ -270,11 +271,11 @@ void loop() {
     if(alt_hold)
     {
       alt_setpoint = pressure;
-      alt_integral = 0;
+      vel_z_integral = 0;
     }
     else
     {
-      alt_throttle_pid = 0;
+      vel_z_pid = 0;
     }
     
     alt_callback = 0;
@@ -314,10 +315,10 @@ void loop() {
     yaw_rate = yaw_rate*0.7 + imu.gyroscope.z*imu.gyroscope.res*0.3;
 
     // Vertical acceleration calculation and filtering
-    prev_az = az;
-    az = (imu.accelerometer.z*cos(pitch)*cos(roll) - imu.accelerometer.x*sin(pitch) + imu.accelerometer.y*cos(pitch)*sin(roll))*imu.accelerometer.res - initial_acc;
+    prev_acc_z = acc_z;
+    acc_z = (imu.accelerometer.z*cos(pitch)*cos(roll) - imu.accelerometer.x*sin(pitch) + imu.accelerometer.y*cos(pitch)*sin(roll))*imu.accelerometer.res - initial_acc;
     acc_av.sum -= acc_av.memory[acc_av.index];
-    acc_av.memory[acc_av.index] = az;
+    acc_av.memory[acc_av.index] = acc_z;
     acc_av.sum += acc_av.memory[acc_av.index];
     acc_av.index++;
     if(acc_av.index == acc_av.samples) acc_av.index = 0;
@@ -325,10 +326,13 @@ void loop() {
     lpf_acc_z = 0.65*lpf_acc_z + 0.36*acc_z_av; // This low-pass-filtered signal will be used for PI+D velocity controller
     
     // Vertical channel velocity and position complementary-kalman filter
-    double dz = prev_pressure - zk;
+    double dz = prev_pressure - pos_z;
     if(sampled_calibration != 2) dz = 0;
-    zk = zk + (dt*dt/2.0)*prev_az + dt*zdk +(k1+k2*dt/2.0)*dt*dz;
-    zdk = zdk + dt*prev_az + k2*dt*dz;
+    pos_z = pos_z + (dt*dt/2.0)*prev_acc_z + dt*vel_Z +(k1+k2*dt/2.0)*dt*dz;
+    vel_Z = vel_Z + dt*prev_acc_z + k2*dt*dz;
+    //Serial.print(roll);
+    //Serial.print(" ");
+    //Serial.println(vel_Z);
 
     double ma = throttle;
     double mb = throttle;
@@ -338,6 +342,7 @@ void loop() {
     double roll_rate_setpoint = kr*(roll_setpoint - roll*180.0/PI);
     double pitch_rate_setpoint = kr*(pitch_setpoint - pitch*180.0/PI);
     double yaw_rate_setpoint = 0;//kr*(yaw_setpoint - orientation.get_yaw()*180.0/PI);
+    double vel_z_setpoint = 0;
     
     if(throttle >= 1100)
     {
@@ -345,7 +350,7 @@ void loop() {
       double roll_error = roll_rate_setpoint - roll_rate;
       double roll_diff = (roll_error - roll_prev_error)/dt;
       roll_integral += roll_error*dt;
-      //roll_integral = constrain(roll_integral, -100, 100);
+      roll_integral = constrain(roll_integral, -100, 100);
       roll_prev_error = roll_error;
       double roll_pid = kp_roll*roll_error + ki_roll*roll_integral + kd_roll*roll_diff;
 
@@ -353,7 +358,7 @@ void loop() {
       double pitch_error = pitch_rate_setpoint - pitch_rate;
       double pitch_diff = (pitch_error - pitch_prev_error)/dt;
       pitch_integral += pitch_error*dt;
-      //pitch_integral = constrain(roll_integral, -100, 100);
+      pitch_integral = constrain(roll_integral, -100, 100);
       pitch_prev_error = pitch_error;
       double pitch_pid = kp_pitch*pitch_error + ki_pitch*pitch_integral + kd_pitch*pitch_diff;
 
@@ -364,10 +369,19 @@ void loop() {
       yaw_prev_error = yaw_error;
       double yaw_pid = kp_yaw*yaw_error + ki_yaw*yaw_integral + kd_yaw*yaw_diff;
 
-      ma = constrain(throttle - alt_throttle_pid - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
-      mb = constrain(throttle - alt_throttle_pid - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
-      mc = constrain(throttle - alt_throttle_pid + roll_pid/4.0 + pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
-      md = constrain(throttle - alt_throttle_pid + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
+      // Calculate PID if alt_hold is activated
+      if(alt_hold)
+      {
+        double vel_z_error = vel_z_setpoint - vel_Z;
+        vel_z_integral += vel_z_error*dt;
+        vel_z_pid = kp_vel_z*vel_z_error + ki_vel_z*vel_z_integral - kd_vel_z*lpf_acc_z;
+        //Serial.println(vel_Z);
+      }
+
+      ma = constrain(throttle + vel_z_pid - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
+      mb = constrain(throttle + vel_z_pid - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
+      mc = constrain(throttle + vel_z_pid + roll_pid/4.0 + pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
+      md = constrain(throttle + vel_z_pid + roll_pid/4.0 - pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
 
       /*ma = constrain(throttle - roll_pid/4.0 - pitch_pid/4.0 + yaw_pid/4.0, 1100, 2000);
       mb = constrain(throttle - roll_pid/4.0 + pitch_pid/4.0 - yaw_pid/4.0, 1100, 2000);
@@ -377,10 +391,10 @@ void loop() {
 
     if(!eStop)
     {
-      /*ledcWrite(ledChannelA, MS_TO_PWM(ma));
+      ledcWrite(ledChannelA, MS_TO_PWM(ma));
       ledcWrite(ledChannelB, MS_TO_PWM(mb));
       ledcWrite(ledChannelC, MS_TO_PWM(mc));
-      ledcWrite(ledChannelD, MS_TO_PWM(md));*/
+      ledcWrite(ledChannelD, MS_TO_PWM(md));
     }
     
     update_orientation = 0;
@@ -422,14 +436,7 @@ void loop() {
       if(pres_av.index == pres_av.samples) pres_av.index = 0;
       prev_pressure = pressure;
       pressure = pres_av.sum/pres_av.samples;
-
-
-  
-      // Calculate PID if alt_hold is activated
-      //if(alt_hold)
-      //{
-        
-      //}
+      
       update_altitude = 0;
     }
   }
