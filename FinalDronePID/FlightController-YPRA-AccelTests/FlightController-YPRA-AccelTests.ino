@@ -6,29 +6,34 @@
 // UI Control variables
 double eStop = 1;
 double throttle = 1000.0;
-double kr = 0; //11
+double kr = 0; //40
+double ka = 0; // 4.7
 
-double kp_roll = 11;//15.0;
+double kp_roll = 11;
 double ki_roll = 0;
-double kd_roll = 0.8;//1.0;
+double kd_roll = 0.8;
 
-double kp_pitch = 11;//15.0;
+double kp_pitch = 11;
 double ki_pitch = 0;
-double kd_pitch = 0.8;//1.0;
+double kd_pitch = 0.8;
 
-double kp_yaw = 5.0;//1.5;
-double ki_yaw = 0;//1.0;
-double kd_yaw = 1.0;//0.4;
+double kp_yaw = 5.0;
+double ki_yaw = 0;
+double kd_yaw = 0;
 
-double kp_vel_z = 0;//10
+double kp_vel_z = 1090.0;
 double ki_vel_z = 0;
-double kd_vel_z = 0;//10
+double kd_vel_z = 0;
 
-double roll_setpoint = 0;
+double roll_setpoint = 0;//0.5;
 double pitch_setpoint = 0;
 double yaw_setpoint = 0;
+double alt_setpoint = 0;
 
 #include "ui_conf.h"
+
+#define TXD2 9
+#define RXD2 15
 
 // BMX055 IMU addresses
 #define AM_DEV 0x18
@@ -135,12 +140,18 @@ double yaw_prev_error = 0;
 
 // Altitude PID calculation variables
 double vel_z_integral = 0;
-double alt_setpoint = 0;
 double vel_z_pid = 0;
+
+// Serial packages sincronization
+int serial_counter = 0;
 
 void setup() {
 
-  // UART Initialization
+  // UART 2  initilization
+  Serial2.begin(1000000, SERIAL_8N1, RXD2, TXD2);
+  delay(100);
+  
+  // UART 1 Initialization
   //Serial.begin(115200);
   Serial.begin(500000);
   //Serial.begin(1000000);
@@ -186,12 +197,21 @@ void setup() {
     imu.get_acc_data();
     delay(5);
   }
+  double initial_acc_roll = 0;
+  double initial_acc_pitch = 0;
   for(int i = 0; i < 100; i++)
   {
     imu.get_acc_data();
-    initial_acc += imu.accelerometer.z*imu.accelerometer.res;
+    double ax = imu.accelerometer.x;
+    double ay = imu.accelerometer.y;
+    double az = imu.accelerometer.z;
+    initial_acc_roll += atan2(ay, sqrt(pow(ax, 2) + pow(az, 2)));
+    initial_acc_pitch += atan2(-1.0*ax, sqrt(pow(ay, 2) + pow(az, 2)));
+    initial_acc += az*imu.accelerometer.res;
     delay(4);
   }
+  initial_acc_roll /= 100;
+  initial_acc_pitch /= 100;
   initial_acc /= 100.0;
   acc_av.samples = 20.0;
 
@@ -210,7 +230,7 @@ void setup() {
   timerAttachInterrupt(orientation_timer, &orientation_isr, true);
   timerAlarmWrite(orientation_timer, ORIENTATION_SAMPLING*1000000.0, true);
   //orientation.set_yaw_offset(imu.magnetometer.yaw_offset);
-  orientation.init(0, 0, MAG_TARGET);
+  orientation.init(initial_acc_roll, initial_acc_pitch, MAG_TARGET);
 
   /*while(throttle < 1100)
   {
@@ -258,9 +278,9 @@ void loop() {
   {
     if(alt_hold)
     {
-      roll_setpoint = roll*180/PI;
-      pitch_setpoint = pitch*180/PI;
-      alt_setpoint = pressure;
+      //roll_setpoint = roll*180/PI;
+      //pitch_setpoint = pitch*180/PI;
+      alt_setpoint = pos_z;
       vel_z_integral = 0;
     }
     else
@@ -320,15 +340,16 @@ void loop() {
     if(sampled_calibration != 2) dz = 0;
     pos_z = pos_z + (dt*dt/2.0)*prev_acc_z + dt*vel_Z +(k1+k2*dt/2.0)*dt*dz;
     vel_Z = vel_Z + dt*prev_acc_z + k2*dt*dz;
-    
-    //Serial.print(roll*180/PI);
-    //Serial.print(" ");
-    //Serial.println(pitch*180/PI);
-    //Serial.print(roll_rate);
-    //Serial.print(" ");
-    //Serial.println(pitch_rate);
-    Serial.println(vel_Z);
 
+    /*Serial.print(roll*180.0/PI);
+    Serial.print(" ");
+    Serial.print(pitch*180.0/PI);
+    Serial.print(" ");
+    Serial.println(pos_z);*/
+
+    Serial.println(roll*180/PI);
+    serial_counter = (serial_counter+1)%10;
+    
     double ma = throttle;
     double mb = throttle;
     double mc = throttle;
@@ -337,7 +358,7 @@ void loop() {
     double roll_rate_setpoint = kr*(roll_setpoint - roll*180.0/PI);
     double pitch_rate_setpoint = kr*(pitch_setpoint - pitch*180.0/PI);
     double yaw_rate_setpoint = 0;//kr*(yaw_setpoint - orientation.get_yaw()*180.0/PI);
-    double vel_z_setpoint = 0;
+    double vel_z_setpoint = ka*(alt_setpoint - pos_z);
     
     if(throttle >= 1100)
     {
@@ -369,7 +390,7 @@ void loop() {
       {
         double vel_z_error = vel_z_setpoint - vel_Z;
         vel_z_integral += vel_z_error*dt;
-        vel_z_integral = constrain(vel_z_integral, -25, 25);
+        vel_z_integral = constrain(vel_z_integral, -50, 50);
         vel_z_pid = kp_vel_z*vel_z_error + ki_vel_z*vel_z_integral - kd_vel_z*lpf_acc_z;
         //Serial.println(vel_Z);
       }
@@ -387,10 +408,11 @@ void loop() {
 
     if(!eStop)
     {
-      ledcWrite(ledChannelA, MS_TO_PWM(ma));
+      Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f\n", serial_counter, dt, roll*180/PI, kr*(roll_setpoint - roll*180.0/PI), roll_rate);
+      /*ledcWrite(ledChannelA, MS_TO_PWM(ma));
       ledcWrite(ledChannelB, MS_TO_PWM(mb));
       ledcWrite(ledChannelC, MS_TO_PWM(mc));
-      ledcWrite(ledChannelD, MS_TO_PWM(md));
+      ledcWrite(ledChannelD, MS_TO_PWM(md));*/
     }
     
     update_orientation = 0;

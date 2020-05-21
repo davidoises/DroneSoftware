@@ -31,13 +31,13 @@ String message = "";
 double pwm = 1000;
  
 void setup(){
-  Serial.begin(115200, SERIAL_8N1);
-  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+  Serial.begin(500000, SERIAL_8N1);
+  Serial2.begin(500000, SERIAL_8N1, RXD2, TXD2);
   delay(100);
   Serial.println("");
   
   ledcSetup(ledChannelA, FREQ, RESOLUTION);
-  ledcAttachPin(PWMD, ledChannelA);
+  ledcAttachPin(SERVO1_X, ledChannelA);
   ledcWrite(ledChannelA, MS_TO_PWM(1000));
 }
  

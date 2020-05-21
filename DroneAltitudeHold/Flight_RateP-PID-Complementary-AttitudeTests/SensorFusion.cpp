@@ -2,8 +2,9 @@
 
 void SensorFusion::init(double initial_roll, double initial_pitch, double initial_yaw)
 {
-  roll = initial_roll;
-  pitch = initial_pitch;
+  roll_offset = initial_roll;
+  pitch_offset = initial_pitch;
+
 #if SHIFTED_YAW
   yaw = initial_yaw;
   shifted_yaw = 0;
@@ -28,17 +29,50 @@ void SensorFusion::fuse_sensors(double ax, double ay, double az, double gx, doub
   double t_delta = ((double)current_time - (double)prev_time)/1000;
   prev_time = current_time;
 
+  ax_av.sum -= ax_av.memory[ax_av.index];
+  ax_av.memory[ax_av.index] = ax;
+  ax_av.sum += ax_av.memory[ax_av.index];
+  ax_av.index++;
+  if(ax_av.index == ax_av.samples) ax_av.index = 0;
+  ax = ax_av.sum/ax_av.samples;
+
+  ay_av.sum -= ay_av.memory[ay_av.index];
+  ay_av.memory[ay_av.index] = ay;
+  ay_av.sum += ay_av.memory[ay_av.index];
+  ay_av.index++;
+  if(ay_av.index == ay_av.samples) ay_av.index = 0;
+  ay = ay_av.sum/ay_av.samples;
+
+  az_av.sum -= az_av.memory[az_av.index];
+  az_av.memory[az_av.index] = az;
+  az_av.sum += az_av.memory[az_av.index];
+  az_av.index++;
+  if(az_av.index == az_av.samples) az_av.index = 0;
+  az = az_av.sum/az_av.samples;
+
   // x, y angles from gyroscope
   double gyr_roll = gx*t_delta*(PI/180.0);
   double gyr_pitch = gy*t_delta*(PI/180.0);
 
   // x, y angles from accelerometer
-  double acc_roll = atan2(ay, sqrt(pow(ax, 2) + pow(az, 2)));
-  double acc_pitch = atan2(-1.0*ax, sqrt(pow(ay, 2) + pow(az, 2)));
+  double acc_roll = atan2(ay, sqrt(pow(ax, 2) + pow(az, 2))) - roll_offset;
+  double acc_pitch = atan2(-1.0*ax, sqrt(pow(ay, 2) + pow(az, 2))) - pitch_offset;
 
+  acc_roll_av.sum -= acc_roll_av.memory[acc_roll_av.index];
+  acc_roll_av.memory[acc_roll_av.index] = acc_roll;
+  acc_roll_av.sum += acc_roll_av.memory[acc_roll_av.index];
+  acc_roll_av.index++;
+  if(acc_roll_av.index == acc_roll_av.samples) acc_roll_av.index = 0;
+
+  acc_pitch_av.sum -= acc_pitch_av.memory[acc_pitch_av.index];
+  acc_pitch_av.memory[acc_pitch_av.index] = acc_pitch;
+  acc_pitch_av.sum += acc_pitch_av.memory[acc_pitch_av.index];
+  acc_pitch_av.index++;
+  if(acc_pitch_av.index == acc_pitch_av.samples) acc_pitch_av.index = 0;
+  
   // x, y complementary filter for angles
-  roll = 0.99*(roll + gyr_roll) + 0.01*acc_roll;
-  pitch = 0.99*(pitch + gyr_pitch) + 0.01*acc_pitch;
+  roll = 0.99*(roll + gyr_roll) + 0.01*acc_roll_av.sum/acc_roll_av.samples;
+  pitch = 0.99*(pitch + gyr_pitch) + 0.01*acc_pitch_av.sum/acc_pitch_av.samples;
 
   // Get roll and pitch fot compass tilt compensation
   double mag_roll = pitch;

@@ -73,9 +73,9 @@ uint8_t MS5611::getOversampling(void)
 
 void MS5611::reset(void)
 {
-    Wire1.beginTransmission(MS5611_ADDRESS);
-	  Wire1.write(MS5611_CMD_RESET);
-    Wire1.endTransmission();
+    Wire.beginTransmission(MS5611_ADDRESS);
+	  Wire.write(MS5611_CMD_RESET);
+    Wire.endTransmission();
 }
 
 void MS5611::readPROM(void)
@@ -88,16 +88,16 @@ void MS5611::readPROM(void)
 
 void MS5611::requestTemperature(void)
 {
-  Wire1.beginTransmission(MS5611_ADDRESS);
-  Wire1.write(MS5611_CMD_CONV_D2 + uosr);
-  Wire1.endTransmission();
+  Wire.beginTransmission(MS5611_ADDRESS);
+  Wire.write(MS5611_CMD_CONV_D2 + uosr);
+  Wire.endTransmission();
 }
 
 void MS5611::requestPressure(void)
 {
-  Wire1.beginTransmission(MS5611_ADDRESS);
-  Wire1.write(MS5611_CMD_CONV_D1 + uosr);
-  Wire1.endTransmission();
+  Wire.beginTransmission(MS5611_ADDRESS);
+  Wire.write(MS5611_CMD_CONV_D1 + uosr);
+  Wire.endTransmission();
 }
 
 uint32_t MS5611::readRawTemperature(void)
@@ -228,25 +228,25 @@ double MS5611::getSeaLevel(double pressure, double altitude)
 uint16_t MS5611::readRegister16(uint8_t reg)
 {
     uint16_t value;
-    Wire1.beginTransmission(MS5611_ADDRESS);
+    Wire.beginTransmission(MS5611_ADDRESS);
     #if ARDUINO >= 100
-        Wire1.write(reg);
+        Wire.write(reg);
     #else
-        Wire1.send(reg);
+        Wire.send(reg);
     #endif
-    Wire1.endTransmission();
+    Wire.endTransmission();
 
-    Wire1.beginTransmission(MS5611_ADDRESS);
-    Wire1.requestFrom(MS5611_ADDRESS, 2);
-    while(!Wire1.available()) {};
+    Wire.beginTransmission(MS5611_ADDRESS);
+    Wire.requestFrom(MS5611_ADDRESS, 2);
+    while(!Wire.available()) {};
     #if ARDUINO >= 100
-        uint8_t vha = Wire1.read();
-        uint8_t vla = Wire1.read();
+        uint8_t vha = Wire.read();
+        uint8_t vla = Wire.read();
     #else
-        uint8_t vha = Wire1.receive();
-        uint8_t vla = Wire1.receive();
+        uint8_t vha = Wire.receive();
+        uint8_t vla = Wire.receive();
     #endif;
-    Wire1.endTransmission();
+    Wire.endTransmission();
 
     value = vha << 8 | vla;
 
@@ -257,27 +257,27 @@ uint16_t MS5611::readRegister16(uint8_t reg)
 uint32_t MS5611::readRegister24(uint8_t reg)
 {
     uint32_t value;
-    Wire1.beginTransmission(MS5611_ADDRESS);
+    Wire.beginTransmission(MS5611_ADDRESS);
     #if ARDUINO >= 100
-        Wire1.write(reg);
+        Wire.write(reg);
     #else
-        Wire1.send(reg);
+        Wire.send(reg);
     #endif
-    Wire1.endTransmission();
+    Wire.endTransmission();
 
-    Wire1.beginTransmission(MS5611_ADDRESS);
-    Wire1.requestFrom(MS5611_ADDRESS, 3);
-    while(!Wire1.available()) {};
+    Wire.beginTransmission(MS5611_ADDRESS);
+    Wire.requestFrom(MS5611_ADDRESS, 3);
+    while(!Wire.available()) {};
     #if ARDUINO >= 100
-        uint8_t vxa = Wire1.read();
-        uint8_t vha = Wire1.read();
-        uint8_t vla = Wire1.read();
+        uint8_t vxa = Wire.read();
+        uint8_t vha = Wire.read();
+        uint8_t vla = Wire.read();
     #else
-        uint8_t vxa = Wire1.receive();
-        uint8_t vha = Wire1.receive();
-        uint8_t vla = Wire1.receive();
+        uint8_t vxa = Wire.receive();
+        uint8_t vha = Wire.receive();
+        uint8_t vla = Wire.receive();
     #endif;
-    Wire1.endTransmission();
+    Wire.endTransmission();
 
     value = ((int32_t)vxa << 16) | ((int32_t)vha << 8) | vla;
 

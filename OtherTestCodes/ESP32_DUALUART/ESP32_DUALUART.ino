@@ -1,4 +1,4 @@
-#define TRX 1
+#define TRX 0
 #define SEND 0
 
 #if SEND && !TRX
@@ -11,11 +11,11 @@
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(115200);
+  Serial.begin(500000);
   Serial.println("test");
   delay(1000);
   //Serial2.begin(115200);
-  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+  Serial2.begin(500000, SERIAL_8N1, RXD2, TXD2);
 }
 
 void loop() {
