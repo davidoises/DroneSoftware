@@ -19,9 +19,9 @@ double kd_pitch = 0.8;
 
 double kp_yaw = 5.0;
 double ki_yaw = 0;
-double kd_yaw = 0;
+double kd_yaw = 0.1;
 
-double kp_vel_z = 1090.0;
+double kp_vel_z = 0;//1090.0;
 double ki_vel_z = 0;
 double kd_vel_z = 0;
 
@@ -53,6 +53,8 @@ double alt_setpoint = 0;
 #define ADCB 38
 #define ADCC 34
 #define ADCD 35
+#define LASER1 0
+#define LASER2 2
 
 // setting PWM properties
 #define FREQ 250
@@ -61,6 +63,10 @@ double alt_setpoint = 0;
 #define ledChannelB 1
 #define ledChannelC 2
 #define ledChannelD 3
+#define ledChannelS1X 4
+#define ledChannelS1Y 5
+#define ledChannelS2X 6
+#define ledChannelS2Y 7
 
 // Constants for ESC control
 #define MAX_PWM (1<<RESOLUTION)-1
@@ -181,6 +187,27 @@ void setup() {
   ledcAttachPin(PWMD, ledChannelD); // Positive toruqe
   ledcWrite(ledChannelD, MS_TO_PWM(1000));
 
+  ledcSetup(ledChannelS1X, FREQ, RESOLUTION);
+  ledcAttachPin(SERVO1_X, ledChannelS1X); // Positive toruqe
+  ledcWrite(ledChannelS1X, MS_TO_PWM(1000));
+
+  ledcSetup(ledChannelS1Y, FREQ, RESOLUTION);
+  ledcAttachPin(SERVO1_Y, ledChannelS1Y); // Positive toruqe
+  ledcWrite(ledChannelS1Y, MS_TO_PWM(1000));
+
+  ledcSetup(ledChannelS2X, FREQ, RESOLUTION);
+  ledcAttachPin(SERVO2_X, ledChannelS2X); // Positive toruqe
+  ledcWrite(ledChannelS2X, MS_TO_PWM(1000));
+
+  ledcSetup(ledChannelS2Y, FREQ, RESOLUTION);
+  ledcAttachPin(SERVO2_Y, ledChannelS2Y); // Positive toruqe
+  ledcWrite(ledChannelS2Y, MS_TO_PWM(1000));
+
+  pinMode(LASER1, OUTPUT);
+  pinMode(LASER2, OUTPUT);
+  digitalWrite(LASER1, LOW);
+  digitalWrite(LASER2, LOW);
+
   // Start user interface while ESCs set up
   #if WIFI_GUI
   Blynk.begin(auth, ssid, pass);
@@ -297,6 +324,12 @@ void loop() {
     ledcWrite(ledChannelB, MS_TO_PWM(1000));
     ledcWrite(ledChannelC, MS_TO_PWM(1000));
     ledcWrite(ledChannelD, MS_TO_PWM(1000));
+    ledcWrite(ledChannelS1X, MS_TO_PWM(1000));
+    ledcWrite(ledChannelS1Y, MS_TO_PWM(1000));
+    ledcWrite(ledChannelS2X, MS_TO_PWM(1000));
+    ledcWrite(ledChannelS2Y, MS_TO_PWM(1000));
+    digitalWrite(LASER1, LOW);
+    digitalWrite(LASER2, LOW);
   }
   
   if(update_orientation)
@@ -334,6 +367,9 @@ void loop() {
     if(acc_av.index == acc_av.samples) acc_av.index = 0;
     double acc_z_av = acc_av.sum/acc_av.samples;
     lpf_acc_z = 0.65*lpf_acc_z + 0.36*acc_z_av; // This low-pass-filtered signal will be used for PI+D velocity controller
+
+    double acc_x = (imu.accelerometer.x*cos(pitch) + imu.accelerometer.z*cos(roll)*sin(pitch) + imu.accelerometer.y*sin(pitch)*sin(roll))*imu.accelerometer.res;
+    double acc_y = (imu.accelerometer.y*cos(roll) - imu.accelerometer.z*sin(roll))*imu.accelerometer.res;
     
     // Vertical channel velocity and position complementary-kalman filter
     double dz = prev_pressure - pos_z;
@@ -346,9 +382,7 @@ void loop() {
     Serial.print(pitch*180.0/PI);
     Serial.print(" ");
     Serial.println(pos_z);*/
-
-    Serial.println(roll*180/PI);
-    serial_counter = (serial_counter+1)%10;
+    
     
     double ma = throttle;
     double mb = throttle;
@@ -359,6 +393,7 @@ void loop() {
     double pitch_rate_setpoint = kr*(pitch_setpoint - pitch*180.0/PI);
     double yaw_rate_setpoint = 0;//kr*(yaw_setpoint - orientation.get_yaw()*180.0/PI);
     double vel_z_setpoint = ka*(alt_setpoint - pos_z);
+    vel_z_setpoint = constrain(vel_z_setpoint, -2, 2);
     
     if(throttle >= 1100)
     {
@@ -408,11 +443,19 @@ void loop() {
 
     if(!eStop)
     {
-      Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f\n", serial_counter, dt, roll*180/PI, kr*(roll_setpoint - roll*180.0/PI), roll_rate);
-      /*ledcWrite(ledChannelA, MS_TO_PWM(ma));
+      //Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f\n", serial_counter, dt, roll*180/PI, kr*(roll_setpoint - roll*180.0/PI), roll_rate);
+      Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f, %.2f\n", serial_counter, dt, acc_x, roll*180.0/PI, acc_y, pitch*180/PI);
+      serial_counter = (serial_counter+1)%10;
+      ledcWrite(ledChannelA, MS_TO_PWM(ma));
       ledcWrite(ledChannelB, MS_TO_PWM(mb));
       ledcWrite(ledChannelC, MS_TO_PWM(mc));
-      ledcWrite(ledChannelD, MS_TO_PWM(md));*/
+      ledcWrite(ledChannelD, MS_TO_PWM(md));
+      ledcWrite(ledChannelS1X, MS_TO_PWM(1500));
+      ledcWrite(ledChannelS1Y, MS_TO_PWM(1500));
+      ledcWrite(ledChannelS2X, MS_TO_PWM(1500));
+      ledcWrite(ledChannelS2Y, MS_TO_PWM(1500));
+      digitalWrite(LASER1, HIGH);
+      digitalWrite(LASER2, HIGH);
     }
     
     update_orientation = 0;

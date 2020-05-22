@@ -55,7 +55,7 @@ BLYNK_WRITE(V2)
   //kp_yaw = param.asDouble();
   //kp_roll = param.asDouble();
   //kp_pitch = kp_roll;
-  //kp_vel_z = param.asDouble();
+  kp_vel_z = param.asDouble();
   //roll_setpoint = param.asDouble();
   //ui_callback = 1;
 }
@@ -66,8 +66,8 @@ BLYNK_WRITE(V3)
   //ki_yaw = param.asDouble();
   //ki_roll = param.asDouble();
   //ki_pitch = ki_roll;
-  //ki_vel_z = param.asDouble();
-  kp_vel_z = param.asDouble();
+  ki_vel_z = param.asDouble();
+  //kp_vel_z = param.asDouble();
   //pitch_setpoint = param.asDouble();
   //ui_callback = 1;
 }
@@ -78,10 +78,10 @@ BLYNK_WRITE(V4)
   //kd_yaw = param.asDouble();
   //kd_roll = param.asDouble();
   //kd_pitch = kd_roll;
-  //kd_vel_z = param.asDouble();
+  kd_vel_z = param.asDouble();
   //yaw_setpoint = param.asDouble();
   //ui_callback = 1;
-  ka = param.asDouble();
+  //ka = param.asDouble();
 }
 
 BLYNK_WRITE(V5)
@@ -93,7 +93,8 @@ BLYNK_WRITE(V5)
 
 BLYNK_WRITE(V6)
 {
-  kr = param.asDouble(); // assigning incoming value from pin V1 to a variable
+  //kr = param.asDouble(); // assigning incoming value from pin V1 to a variable
+  ka = param.asDouble();
 }
 
 /*BLYNK_CONNECTED()

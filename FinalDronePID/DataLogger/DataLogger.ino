@@ -35,7 +35,7 @@ void setup() {
 void loop() {
   String ins = "";
 
-  for(int i = 0; i<100; i++)
+  for(int i = 0; i<10; i++)
   {
     ins += Serial2.readStringUntil('\n');
     ins += "\n";
@@ -43,5 +43,5 @@ void loop() {
     //serial_counter = (serial_counter+1)%9;
   }
   logger.print(ins);
-  //Serial.print(ins);
+  Serial.print(ins);
 }
