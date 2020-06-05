@@ -9,13 +9,13 @@ double throttle = 1000.0;
 double kr = 0; //40
 double ka = 0; // 4.7
 
-double kp_roll = 11;
+double kp_roll = 6.5;//11
 double ki_roll = 0;
-double kd_roll = 0.8;
+double kd_roll = 0.8; // 0.8
 
-double kp_pitch = 11;
+double kp_pitch = 6.5;//11
 double ki_pitch = 0;
-double kd_pitch = 0.8;
+double kd_pitch = 0.8; //0.8
 
 double kp_yaw = 5.0;
 double ki_yaw = 0;
@@ -305,8 +305,8 @@ void loop() {
   {
     if(alt_hold)
     {
-      //roll_setpoint = roll*180/PI;
-      //pitch_setpoint = pitch*180/PI;
+      roll_setpoint = roll*180/PI;
+      pitch_setpoint = pitch*180/PI;
       alt_setpoint = pos_z;
       vel_z_integral = 0;
     }
@@ -324,12 +324,12 @@ void loop() {
     ledcWrite(ledChannelB, MS_TO_PWM(1000));
     ledcWrite(ledChannelC, MS_TO_PWM(1000));
     ledcWrite(ledChannelD, MS_TO_PWM(1000));
-    ledcWrite(ledChannelS1X, MS_TO_PWM(1000));
+    /*ledcWrite(ledChannelS1X, MS_TO_PWM(1000));
     ledcWrite(ledChannelS1Y, MS_TO_PWM(1000));
     ledcWrite(ledChannelS2X, MS_TO_PWM(1000));
     ledcWrite(ledChannelS2Y, MS_TO_PWM(1000));
     digitalWrite(LASER1, LOW);
-    digitalWrite(LASER2, LOW);
+    digitalWrite(LASER2, LOW);*/
   }
   
   if(update_orientation)
@@ -376,12 +376,6 @@ void loop() {
     if(sampled_calibration != 2) dz = 0;
     pos_z = pos_z + (dt*dt/2.0)*prev_acc_z + dt*vel_Z +(k1+k2*dt/2.0)*dt*dz;
     vel_Z = vel_Z + dt*prev_acc_z + k2*dt*dz;
-
-    /*Serial.print(roll*180.0/PI);
-    Serial.print(" ");
-    Serial.print(pitch*180.0/PI);
-    Serial.print(" ");
-    Serial.println(pos_z);*/
     
     
     double ma = throttle;
@@ -427,6 +421,7 @@ void loop() {
         vel_z_integral += vel_z_error*dt;
         vel_z_integral = constrain(vel_z_integral, -50, 50);
         vel_z_pid = kp_vel_z*vel_z_error + ki_vel_z*vel_z_integral - kd_vel_z*lpf_acc_z;
+        vel_z_pid = 0;
         //Serial.println(vel_Z);
       }
 
@@ -444,18 +439,18 @@ void loop() {
     if(!eStop)
     {
       //Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f\n", serial_counter, dt, roll*180/PI, kr*(roll_setpoint - roll*180.0/PI), roll_rate);
-      Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f, %.2f\n", serial_counter, dt, acc_x, roll*180.0/PI, acc_y, pitch*180/PI);
-      serial_counter = (serial_counter+1)%10;
+      //Serial2.printf("%d,%.3f,%.2f,%.2f,%.2f, %.2f\n", serial_counter, dt, acc_x, roll*180.0/PI, acc_y, pitch*180/PI);
+      //serial_counter = (serial_counter+1)%10;
       ledcWrite(ledChannelA, MS_TO_PWM(ma));
       ledcWrite(ledChannelB, MS_TO_PWM(mb));
       ledcWrite(ledChannelC, MS_TO_PWM(mc));
       ledcWrite(ledChannelD, MS_TO_PWM(md));
-      ledcWrite(ledChannelS1X, MS_TO_PWM(1500));
+      /*ledcWrite(ledChannelS1X, MS_TO_PWM(1500));
       ledcWrite(ledChannelS1Y, MS_TO_PWM(1500));
       ledcWrite(ledChannelS2X, MS_TO_PWM(1500));
       ledcWrite(ledChannelS2Y, MS_TO_PWM(1500));
       digitalWrite(LASER1, HIGH);
-      digitalWrite(LASER2, HIGH);
+      digitalWrite(LASER2, HIGH);*/
     }
     
     update_orientation = 0;

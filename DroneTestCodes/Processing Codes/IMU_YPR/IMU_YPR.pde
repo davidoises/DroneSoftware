@@ -69,11 +69,11 @@ void setup() {
     //String portName = Serial.list()[0];
     
     // get a specific serial port (use EITHER this OR the first-available code above)
-    String portName = "COM38";
+    String portName = "COM42";
     
     // open the serial port
-    port = new Serial(this, portName, 115200);
-    //port = new Serial(this, portName, 1000000);
+    //port = new Serial(this, portName, 115200);
+    port = new Serial(this, portName, 1000000);
     
     // send single character to trigger DMP init/start
     // (expected by MPU6050_DMP6 example Arduino sketch)
@@ -107,10 +107,10 @@ void draw() {
     rotateZ(ypr[2]);
     rotateY(ypr[1]);
     rotateX(ypr[0]);
-    
-    //rotateX(ypr[0]);
-    //rotateY(ypr[2]);
-    //rotateZ(ypr[1]);
+    /*
+    rotateX(ypr[0]);
+    rotateY(ypr[2]);
+    rotateZ(ypr[1]);*/
 
     // toxiclibs direct angle/axis rotation from quaternion (NO gimbal lock!)
     // (axis order [1, 3, 2] and inversion [-1, +1, +1] is a consequence of

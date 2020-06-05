@@ -149,13 +149,15 @@ void loop() {
       ledcWrite(ledChannel, MS_TO_PWM(throttle));
     }
     
-    Serial.print(total_acc_vec);
+    /*Serial.print(total_acc_vec);
     Serial.print(" ");
     Serial.print(roll_rate);
     Serial.print(" ");
     Serial.print(pitch_rate);
     Serial.print(" ");
-    Serial.println(yaw_rate);
+    Serial.println(yaw_rate);*/
+    //Serial.println(analogRead(37)*12.75/2.75);
+    Serial.println(analogRead(37)*(3.3/4095.0)*(1.0076) + 0.1729);
     
     update_orientation = 0;
   }

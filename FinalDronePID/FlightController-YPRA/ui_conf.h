@@ -93,8 +93,8 @@ BLYNK_WRITE(V5)
 
 BLYNK_WRITE(V6)
 {
-  //kr = param.asDouble(); // assigning incoming value from pin V1 to a variable
-  ka = param.asDouble();
+  kr = param.asDouble(); // assigning incoming value from pin V1 to a variable
+  //ka = param.asDouble();
 }
 
 /*BLYNK_CONNECTED()
