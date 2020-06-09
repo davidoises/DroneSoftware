@@ -69,6 +69,9 @@ const char DEVICE_NAME[] = "mpu6050";
 
 unsigned long prev_time = 0;
 
+TaskHandle_t imu_handle = NULL;
+TaskHandle_t blynk_handle = NULL;
+
 
 // ================================================================
 // ===               INTERRUPT DETECTION ROUTINE                ===
@@ -90,7 +93,7 @@ void blynkLoop(void *pvParameters ) {  //task to be created by FreeRTOS and pinn
   while (true) {
     //Serial.println("hola");
     Blynk.run();
-    vTaskDelay(500);
+    vTaskDelay(50);
   }
 }
 void mpu_loop(void *pvParameters )
@@ -290,10 +293,10 @@ void setup(void)
   xTaskCreatePinnedToCore(
     blynkLoop,      /* Function to implement the task */
     "blynk core 0", /* Name of the task */
-    50000,         /* Stack size in words */
+    5000,         /* Stack size in words */
     NULL,           /* Task input parameter */
     1,              /* Priority of the task */
-    NULL,           /* Task handle. */
+    &blynk_handle,           /* Task handle. */
     0);             /* Core where the task should run */
 
   //Serial.println(ESP.getFreeHeap());
@@ -301,10 +304,10 @@ void setup(void)
   xTaskCreatePinnedToCore(
     mpu_loop,      /* Function to implement the task */
     "IMU core 0", /* Name of the task */
-    30000,         /* Stack size in words */
+    5000,         /* Stack size in words */
     NULL,           /* Task input parameter */
     2,              /* Priority of the task */
-    NULL,           /* Task handle. */
+    &imu_handle,           /* Task handle. */
     0);             /* Core where the task should run */
 
   timerAlarmEnable(orientation_timer);
@@ -322,24 +325,16 @@ void setup(void)
 /**************************************************************************/
 void loop(void)
 {
-  /*if(ui_callback)
-  {
-    Serial.print(throttle);
-    Serial.print(" ");
-    Serial.print(roll);
-    Serial.print(" ");
-    Serial.print(pitch);
-    Serial.print(" ");
-    Serial.println(yaw);
-    ui_callback = 0;
-  }*/
-  //mpu_loop();
   if(update_orientation)
   {
     unsigned long current_time = millis();
     float dt = current_time - prev_time;
     prev_time = current_time;
 
+    Serial.print(uxTaskGetStackHighWaterMark(blynk_handle));
+    Serial.print("\t");
+    Serial.print(uxTaskGetStackHighWaterMark(imu_handle));
+    Serial.print("\t");
     Serial.print(dt);
     Serial.print("\t");
     Serial.print(throttle);
@@ -352,4 +347,6 @@ void loop(void)
 
     update_orientation = 0;
   }
+  //Serial.println(uxTaskGetStackHighWaterMark(blynk_handle));
+  //delay(50);
 }

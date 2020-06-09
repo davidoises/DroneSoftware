@@ -23,9 +23,11 @@ void msg_flag_isr()
 
 void setup() {
   // put your setup code here, to run once:
-  //Serial.begin(115200);
-  Serial.begin(500000);
-  delay(500);
+  Serial.begin(115200);
+  //Serial.begin(500000);
+  delay(1000);
+  Serial.println("");
+  Serial.println("Starting");
   
   rf_comm.begin();
   Serial.println("CC1125 Initialized!");
@@ -40,8 +42,8 @@ void setup() {
 
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 1000000, true);
-  //timerAlarmEnable(timer);
+  timerAlarmWrite(timer, 40000, true); // 100000 is a safe period (100ms), aslo (50ms) and (40ms)
+  timerAlarmEnable(timer);
 }
 
 void loop() {
