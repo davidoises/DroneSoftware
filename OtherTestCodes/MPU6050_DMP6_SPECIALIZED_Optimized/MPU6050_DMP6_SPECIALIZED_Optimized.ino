@@ -52,7 +52,7 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 #define OUTPUT_READABLE_YAWPITCHROLL
 //#define OUTPUT_TEAPOT_YAWPITCHROLL
 
-//#define OUTPUT_READABLE_GYRO
+#define OUTPUT_READABLE_GYRO
 
 // uncomment "OUTPUT_READABLE_WORLDACCEL" if you want to see acceleration
 // components with gravity removed and adjusted for the world frame of
@@ -62,12 +62,18 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 
 
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+float prev_roll = 0;
+float prev_pitch = 0;
+float prev_yaw = 0;
+float gyr[3];
+float acc[3];
 
 #define INTERRUPT_PIN 19 // use pin 15 on ESP8266
 
 const char DEVICE_NAME[] = "mpu6050";
 
-unsigned long prev_time = 0;
+unsigned long prev_imu_time = 0;
+unsigned long prev_pid_time = 0;
 
 TaskHandle_t imu_handle = NULL;
 TaskHandle_t blynk_handle = NULL;
@@ -139,83 +145,34 @@ void mpu_loop(void *pvParameters )
       // (this lets us immediately read more without waiting for an interrupt)
       fifoCount -= packetSize;
   
-      /*unsigned long current_time = millis();
-      double dt = current_time - prev_time;
-      prev_time = current_time;
-      if(dt > 6)
-      {
-        Serial.print(dt);
-        Serial.print("\t");
-      }*/
-      //Serial.println(throttle);
-      //Serial.print("\t");
-  
-  #ifdef OUTPUT_READABLE_GYRO
-      int16_t gyr[3];
-      mpu.dmpGetGyro(gyr, fifoBuffer);
-      Serial.print(gyr[0]);
-      Serial.print("\t");
-      Serial.print(gyr[1]);
-      Serial.print("\t");
-      Serial.println(gyr[2]);
-  #endif
-  
-  #ifdef OUTPUT_READABLE_YAWPITCHROLL
-      // display Euler angles in degrees
+      unsigned long current_time = millis();
+      float dt = (current_time - prev_imu_time)/1000.0;
+      prev_imu_time = current_time;
+
+      // Gyroscope values obtention
+      int16_t temp[3];
+      mpu.dmpGetGyro(temp, fifoBuffer);
+      gyr[0] = (float)temp[0];
+      gyr[1] = (float)temp[1];
+      gyr[2] = (float)temp[2];
+      
+      // Yaw, pitch, roll obtention
       mpu.dmpGetQuaternion(&q, fifoBuffer);
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-      //Serial.print("ypr\t");
-      /*Serial.print(ypr[0] * 180/M_PI);
-      Serial.print("\t");
-      Serial.print(ypr[1] * 180/M_PI);
-      Serial.print("\t");
-      Serial.println(ypr[2] * 180/M_PI);*/
-  #endif
-  
-  #ifdef OUTPUT_TEAPOT_YAWPITCHROLL
-      // display Euler angles in degrees
-      mpu.dmpGetQuaternion(&q, fifoBuffer);
-      mpu.dmpGetGravity(&gravity, &q);
-      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-      Serial.print("y");
-      Serial.print(ypr[2]);
-      Serial.print(",");
-      Serial.print(ypr[1]);
-      Serial.print(",");
-      Serial.print(ypr[0]);
-      Serial.print("$\n");
-  #endif
-  
-  #ifdef OUTPUT_READABLE_REALACCEL
-      // display real acceleration, adjusted to remove gravity
-      mpu.dmpGetQuaternion(&q, fifoBuffer);
+
+      // Gyroscope derivated values
+      acc[0] = (gyr[0] - prev_roll)/dt;
+      acc[1] = (gyr[1] - prev_pitch)/dt;
+      acc[2] = (gyr[2] - prev_yaw)/dt;
+      prev_roll = gyr[0];
+      prev_pitch = gyr[1];
+      prev_yaw = gyr[2];
+
+      // Acceleration obtention
       mpu.dmpGetAccel(&aa, fifoBuffer);
-      mpu.dmpGetGravity(&gravity, &q);
-      mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-      Serial.print("areal\t");
-      Serial.print(aaReal.x);
-      Serial.print("\t");
-      Serial.print(aaReal.y);
-      Serial.print("\t");
-      Serial.println(aaReal.z);
-  #endif
-  
-  #ifdef OUTPUT_READABLE_WORLDACCEL
-      // display initial world-frame acceleration, adjusted to remove gravity
-      // and rotated based on known orientation from quaternion
-      mpu.dmpGetQuaternion(&q, fifoBuffer);
-      mpu.dmpGetAccel(&aa, fifoBuffer);
-      mpu.dmpGetGravity(&gravity, &q);
-      mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-      mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-      Serial.print("aworld\t");
-      Serial.print(aaWorld.x);
-      Serial.print("\t");
-      Serial.print(aaWorld.y);
-      Serial.print("\t");
-      Serial.println(aaWorld.z);
-  #endif
+      mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity); // Rotates pitch and roll
+      //mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q); // rotates yaw
     }
   }
 }
@@ -314,22 +271,17 @@ void setup(void)
   Serial.println("Starting");
   //total heap = 177360
 
-  prev_time = millis();
+  prev_imu_time = millis();
+  prev_pid_time = millis();
 }
 
-/**************************************************************************/
-/*
-    Arduino loop function, called once 'setup' is complete (your own code
-    should go here)
-*/
-/**************************************************************************/
 void loop(void)
 {
   if(update_orientation)
   {
     unsigned long current_time = millis();
-    float dt = current_time - prev_time;
-    prev_time = current_time;
+    float dt = current_time - prev_pid_time;
+    prev_pid_time = current_time;
 
     Serial.print(uxTaskGetStackHighWaterMark(blynk_handle));
     Serial.print("\t");
@@ -339,11 +291,42 @@ void loop(void)
     Serial.print("\t");
     Serial.print(throttle);
     Serial.print("\t");
-    Serial.print(ypr[0] * 180/M_PI);
-    Serial.print("\t");
-    Serial.print(ypr[1] * 180/M_PI);
-    Serial.print("\t");
-    Serial.println(ypr[2] * 180/M_PI);
+
+    float roll = ypr[2];
+    float pitch = -ypr[1];
+    float yaw = -ypr[0];
+    
+    Serial.print(yaw * 180/M_PI); // yaw
+    Serial.print(",");
+    Serial.print(pitch * 180/M_PI); // pitch
+    Serial.print(",");
+    Serial.println(roll * 180/M_PI); // roll
+    //Serial.print(",");
+    //Serial.println(gyr[2]); // yaw
+    //Serial.print(",");
+    //Serial.println(gyr[1]); // pitch
+    //Serial.print(",");
+    //Serial.print(gyr[0]); // roll
+    //Serial.print(",");
+    //Serial.println(acc[2]);
+    //Serial.print(",");
+    //Serial.println(acc[1]);
+    //Serial.print(",");
+    //Serial.println(acc[0]);
+
+    /*
+    Serial.print(aa.x);
+    Serial.print(",");
+    Serial.print(aa.y);
+    Serial.print(",");
+    Serial.print(aa.z);
+    Serial.print(",");
+    Serial.print(aaReal.x);
+    Serial.print(",");
+    Serial.print(aaReal.y);
+    Serial.print(",");
+    Serial.println(aaReal.z);
+    */
 
     update_orientation = 0;
   }
