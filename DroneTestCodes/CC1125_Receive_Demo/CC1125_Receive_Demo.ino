@@ -14,8 +14,8 @@ void msg_flag_isr()
 
 void setup() {
   // put your setup code here, to run once:
-  //Serial.begin(115200);
-  Serial.begin(500000);
+  Serial.begin(115200);
+  //Serial.begin(500000);
   delay(500);
   
   rf_comm.begin();
@@ -26,8 +26,8 @@ void setup() {
   Serial.println("Available for message recpetion");
 
   //Antes 4 = RF INT or 15
-  pinMode(4, INPUT_PULLUP);
-  attachInterrupt(4, msg_flag_isr, FALLING);
+  pinMode(15, INPUT_PULLUP);
+  attachInterrupt(15, msg_flag_isr, FALLING);
 }
 
 void loop() {

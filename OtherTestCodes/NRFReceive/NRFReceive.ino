@@ -32,7 +32,7 @@ void setup() {
 
 void loop() {
   //if (radio.available()) {
-  if(msg_flag)
+  if(msg_flag || 1)
   {
     unsigned long current_time = millis();
     int dt = current_time - prev_time;

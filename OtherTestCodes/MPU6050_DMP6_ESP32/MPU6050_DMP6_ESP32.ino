@@ -130,7 +130,7 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 #endif
 
-#define INTERRUPT_PIN 19 // use pin 15 on ESP8266
+#define INTERRUPT_PIN 25 // use pin 15 on ESP8266
 
 const char DEVICE_NAME[] = "mpu6050";
 
@@ -356,5 +356,5 @@ void loop(void)
   mpu_loop();
 
   double dt = micros() - prev_time;
-  Serial.println(dt);
+  //Serial.println(dt);
 }

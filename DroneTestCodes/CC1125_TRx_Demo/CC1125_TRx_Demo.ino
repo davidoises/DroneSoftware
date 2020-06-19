@@ -37,8 +37,8 @@ void setup() {
   Serial.println("Available for message recpetion");
 
   //Antes 4 = RF INT or 15
-  pinMode(4, INPUT_PULLUP);
-  attachInterrupt(4, msg_flag_isr, FALLING);
+  pinMode(15, INPUT_PULLUP);
+  attachInterrupt(15, msg_flag_isr, FALLING);
 
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
@@ -72,10 +72,10 @@ void loop() {
   {
     for(int i = 0; i < pkt_size; i++)
     {
-      //Serial.print("0x");
-      //Serial.print(rxBuffer[i], HEX);
-      //Serial.print(", ");
-      Serial.print((char)rxBuffer[i]);
+      Serial.print("0x");
+      Serial.print(rxBuffer[i], HEX);
+      Serial.print(", ");
+      //Serial.print((char)rxBuffer[i]);
     }
     Serial.println("");
     pkt_size = 0;
